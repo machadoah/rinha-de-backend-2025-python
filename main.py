@@ -4,7 +4,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Redis
 REDIS_HOST = 'localhost'
-REDIS_PORT = '6379'
+REDIS_PORT = 6379
 REDIS_QUEUE = 'payments'
 
 class SimpleHandler(BaseHTTPRequestHandler):
