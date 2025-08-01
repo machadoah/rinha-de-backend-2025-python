@@ -18,15 +18,12 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 def send_data_to_api(url, data):
     try:
-        print(f"📦 Enviando dados para {url}:\n{json.dumps(data, indent=2)}")
-
         resp = mureq.post(url, json=data)
         if HTTPStatus(resp.status_code).is_success:
             print(f"✅ Sucesso ao enviar para {url}")
             return True
         else:
             print(f"❌ Erro HTTP {resp.status_code} ao enviar para {url}")
-            print(f"📨 Resposta: {resp.body.decode()}")
             return False
     except Exception as e:
         print(f"❌ Falha de conexão com {url}: {e}")
