@@ -7,7 +7,7 @@ import redis
 from bottle import Bottle, request, response, run
 
 # Redis Config
-REDIS_HOST = os.getenv("REDIS_HOST", "redis://localhost")
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = 6379
 REDIS_QUEUE = "payments"
 
@@ -49,18 +49,26 @@ def payments_summary():
         "fallback": {"totalRequests": 0, "totalAmount": Decimal("0")},
     }
 
-    keys_default = r.keys("payment:*")
-    keys_fallback = r.keys("payment:*_fallback")
+    def process_category(category, pattern):
+        keys = list(r.scan_iter(pattern))
+        if not keys:
+            return
 
-    def process_keys(keys, category):
-        for key in r.scan_iter("payment:*"):
-            if category == "default" and key.endswith("_fallback"):
+        pipe = r.pipeline()
+        for key in keys:
+            pipe.get(key)
+        values = pipe.execute()
+
+        for key, raw in zip(keys, values):
+            if not raw:
                 continue
             try:
-                raw = r.get(key)
-                if not raw:
-                    continue
                 payment = json.loads(raw)
+
+                if category == "default" and key.endswith("_fallback"):
+                    continue
+                if category == "fallback" and not key.endswith("_fallback"):
+                    continue
 
                 dt_req = None
                 if "requestedAt" in payment:
@@ -71,20 +79,18 @@ def payments_summary():
                 if dt_req and dt_to and dt_req > dt_to:
                     continue
 
-                summary[category]["totalRequests"] += 1
                 amt = payment.get("amount", 0)
-                if isinstance(amt, str):
-                    amt = Decimal(amt)
-                else:
-                    amt = Decimal(str(amt))
+                amt = Decimal(str(amt))
+
+                summary[category]["totalRequests"] += 1
                 summary[category]["totalAmount"] += amt
             except Exception as e:
-                print(f"⚠️ Erro ao processar chave {key}: {e}")
+                print(f"⚠️ Erro ao processar {key}: {e}")
 
-    process_keys(keys_default, "default")
-    process_keys(keys_fallback, "fallback")
+    process_category("default", "payment:*")
+    process_category("fallback", "payment:*_fallback")
 
-    result = {
+    return {
         "default": {
             "totalRequests": summary["default"]["totalRequests"],
             "totalAmount": float(summary["default"]["totalAmount"]),
@@ -94,8 +100,6 @@ def payments_summary():
             "totalAmount": float(summary["fallback"]["totalAmount"]),
         },
     }
-
-    return result
 
 
 @app.get("/me")

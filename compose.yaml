@@ -22,9 +22,7 @@ services:
   api1: &api
     build: api
     environment:
-      - REDIS_URL=redis
-      - PAYMENT_PROCESSOR_DAFAULT=http://payment-processor-default:8080
-      - PAYMENT_PROCESSOR_FALLBACK=http://payment-processor-fallback:8080
+      - REDIS_HOST=redis
     hostname: api1
     networks:
       - backend
@@ -45,8 +43,8 @@ services:
     build: worker
     environment:
       - REDIS_HOST=redis
-      - PAYMENT_PROCESSOR_DAFAULT=http://payment-processor-default:8080
-      - PAYMENT_PROCESSOR_FALLBACK=http://payment-processor-fallback:8080
+      - PAYMENT_PROCESSOR_DEFAULT=http://payment-processor-default:8080/payments
+      - PAYMENT_PROCESSOR_FALLBACK=http://payment-processor-fallback:8080/payments
     hostname: worker
     networks:
       - backend
