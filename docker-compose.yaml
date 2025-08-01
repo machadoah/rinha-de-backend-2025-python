@@ -1,0 +1,74 @@
+services:
+  nginx:
+    image: nginx:alpine
+    container_name: rinha-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "9999:9999"
+    depends_on:
+      - api1
+      - api2
+      - worker
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "70M"
+    networks:
+      - backend
+      - payment-processor
+
+  api1: &api
+    image: machadoah/rinha-backend-2025-python-simple-api:0.0.1
+    environment:
+      - REDIS_HOST=redis
+    hostname: api1
+    networks:
+      - backend
+      - payment-processor
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: "65M"
+
+  api2:
+    <<: *api
+    hostname: api2
+
+  worker: &worker
+    image: machadoah/rinha-backend-2025-python-simple-worker:0.0.1
+    environment:
+      - REDIS_HOST=redis
+      - PAYMENT_PROCESSOR_DEFAULT=http://payment-processor-default:8080/payments
+      - PAYMENT_PROCESSOR_FALLBACK=http://payment-processor-fallback:8080/payments
+    hostname: worker
+    networks:
+      - backend
+      - payment-processor
+    depends_on:
+      - redis
+    deploy:
+      resources:
+        limits:
+          cpus: "0.4"
+          memory: "70M"
+
+  redis:
+    image: redis:alpine
+    deploy:
+      resources:
+        limits:
+          cpus: "0.1"
+          memory: "70M"
+    networks:
+      - backend
+
+networks:
+  backend:
+    driver: bridge
+  payment-processor:
+    external: true
