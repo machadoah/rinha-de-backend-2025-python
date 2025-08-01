@@ -1,51 +1,41 @@
 import json
-import socket
-from http.server import BaseHTTPRequestHandler, HTTPServer
 
-# Redis
+import redis
+from bottle import Bottle, request, response, run
+
+# Redis Config
 REDIS_HOST = 'localhost'
 REDIS_PORT = 6379
 REDIS_QUEUE = 'payments'
 
-class SimpleHandler(BaseHTTPRequestHandler):
-    def do_POST(self):
-        if self.path != "/payment":
-            self.send_response(404)
-            self.end_headers()
-            self.wfile.write(b"Not Found")
-            return
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
-        content_length = int(self.headers.get("Content-Length", 0))
-        raw_body = self.rfile.read(content_length)
-        try:
-            data = json.loads(raw_body)
-            self.push_to_redis_queue(json.dumps(data))
-            self.send_response(200)
-            self.end_headers()
-            self.wfile.write(b"OK")
-        except Exception as e:
-            self.send_response(400)
-            self.end_headers()
-            self.wfile.write(f"Error: {str(e)}".encode())
-        
-    def push_to_redis_queue(self, item):
-        with socket.create_connection((REDIS_HOST, REDIS_PORT)) as sock:
-            # Comando Redis LPUSH payments "item"
-            command = f"*3\r\n$5\r\nLPUSH\r\n${len(REDIS_QUEUE)}\r\n{REDIS_QUEUE}\r\n${len(item)}\r\n{item}\r\n"
-            sock.sendall(command.encode())
+app = Bottle()
 
+@app.post('/payments')
+def handle_payment():
+    data = request.json
+    if not data:
+        response.status = 400
+        return {"error": "JSON inválido ou ausente"}
 
-def run_server():
-    server_address = ('', 8080)
-    httpd = HTTPServer(server_address, SimpleHandler)
-    
-    print('------> 🚀 Servidor rodando!')
-    
-    httpd.serve_forever()
+    try:
+        # Push na fila Redis
+        r.lpush(REDIS_QUEUE, json.dumps(data))
+        return {"status": "OK"}
+    except Exception as e:
+        response.status = 500
+        return {"error": str(e)}
 
+@app.get('/me')
+def about_my_self():
+    return {
+        'name': 'Antonio Henrique Machado',
+        'username': 'machadoah',
+        'github': 'https://github.com/machadoah/',
+        'linkedin': 'https://www.linkedin.com/in/machadoah/'
+    }
 
-
-if __name__ == '__main__':
-    run_server()
-    
-    
+if __name__ == "__main__":
+    print("/n🍾 Servidor Bottle")
+    run(app, host='0.0.0.0', port=8080)
