@@ -1,6 +1,7 @@
 import json
 import os
 from datetime import datetime, timezone
+from http import HTTPStatus
 
 import mureq
 import redis
@@ -17,7 +18,7 @@ r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 def send_data_to_api(url, data):
     try:
         resp = mureq.post(url, json=data)
-        if 200 <= resp.status_code < 300:
+        if HTTPStatus(resp.status_code).is_success():
             print(f'✅ Sucesso ao enviar para {url}')
             return True
         else:
