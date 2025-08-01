@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime, timezone
 
 import mureq
@@ -6,7 +7,7 @@ import redis
 
 PRIMARY_URL = 'http://localhost:8001/payments'
 FALLBACK_URL = 'http://localhost:8002/payments'
-REDIS_HOST = 'localhost'
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis://localhost')
 REDIS_PORT = 6379
 REDIS_QUEUE = 'payments'
 

@@ -1,4 +1,5 @@
 import json
+import os
 from datetime import datetime
 from decimal import Decimal
 
@@ -6,7 +7,7 @@ import redis
 from bottle import Bottle, request, response, run
 
 # Redis Config
-REDIS_HOST = 'localhost'
+REDIS_HOST = os.getenv('REDIS_HOST', 'redis://localhost')
 REDIS_PORT = 6379
 REDIS_QUEUE = 'payments'
 
