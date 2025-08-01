@@ -6,11 +6,11 @@ from http import HTTPStatus
 import mureq
 import redis
 
-PRIMARY_URL = 'http://localhost:8001/payments'
-FALLBACK_URL = 'http://localhost:8002/payments'
-REDIS_HOST = os.getenv('REDIS_HOST', 'redis://localhost')
+PAYMENT_PROCESSOR_DAFAULT = "http://localhost:8001/payments"
+PAYMENT_PROCESSOR_FALLBACK = "http://localhost:8002/payments"
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = 6379
-REDIS_QUEUE = 'payments'
+REDIS_QUEUE = "payments"
 
 r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
@@ -19,48 +19,48 @@ def send_data_to_api(url, data):
     try:
         resp = mureq.post(url, json=data)
         if HTTPStatus(resp.status_code).is_success():
-            print(f'✅ Sucesso ao enviar para {url}')
+            print(f"✅ Sucesso ao enviar para {url}")
             return True
         else:
-            print(f'❌ Erro HTTP {resp.status_code} ao enviar para {url}')
+            print(f"❌ Erro HTTP {resp.status_code} ao enviar para {url}")
             return False
     except Exception as e:
-        print(f'❌ Falha de conexão com {url}: {e}')
+        print(f"❌ Falha de conexão com {url}: {e}")
         return False
 
 
 def send_with_circuit_breaker(data):
     now_iso = (
         datetime.now(timezone.utc)
-        .isoformat(timespec='milliseconds')
-        .replace('+00:00', 'Z')
+        .isoformat(timespec="milliseconds")
+        .replace("+00:00", "Z")
     )
-    data['requestedAt'] = now_iso
+    data["requestedAt"] = now_iso
 
-    print('🔁 Tentando enviar para a API primária...')
-    success = send_data_to_api(PRIMARY_URL, data)
+    print("🔁 Tentando enviar para a API primária...")
+    success = send_data_to_api(PAYMENT_PROCESSOR_DAFAULT, data)
 
     if success:
         try:
-            r.set(f'payment:{data["correlationId"]}', json.dumps(data))
+            r.set(f"payment:{data['correlationId']}", json.dumps(data))
         except Exception as e:
-            print(f'❌ Erro salvando cache Redis: {e}')
+            print(f"❌ Erro salvando cache Redis: {e}")
         return
 
-    print('⚠️ Enviando para a API fallback...')
-    fallback_success = send_data_to_api(FALLBACK_URL, data)
+    print("⚠️ Enviando para a API fallback...")
+    fallback_success = send_data_to_api(PAYMENT_PROCESSOR_FALLBACK, data)
 
     if fallback_success:
         try:
             r.set(
-                f'payment:{data["correlationId"]}_fallback', json.dumps(data)
+                f"payment:{data['correlationId']}_fallback", json.dumps(data)
             )
         except Exception as e:
-            print(f'❌ Erro salvando cache fallback Redis: {e}')
+            print(f"❌ Erro salvando cache fallback Redis: {e}")
 
 
 def worker_loop():
-    print('👷 Worker iniciado. Aguardando pagamentos...')
+    print("👷 Worker iniciado. Aguardando pagamentos...")
     while True:
         item = r.brpop(REDIS_QUEUE, timeout=3)
         if item:
@@ -69,8 +69,8 @@ def worker_loop():
                 data = json.loads(json_str)
                 send_with_circuit_breaker(data)
             except Exception as e:
-                print(f'❌ Erro ao processar item da fila: {e}')
+                print(f"❌ Erro ao processar item da fila: {e}")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     worker_loop()
