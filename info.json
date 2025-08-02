@@ -1,0 +1,13 @@
+{
+  "name": "Antonio Henrique Machado",
+  "social": [
+    "https://x.com/machadoah",
+    "https://www.linkedin.com/in/machadoah"
+  ],
+  "source-code-repo": "https://github.com/machadoah/rinha-de-backend-2025-python",
+  "langs": ["python"],
+  "storages": ["redis"],
+  "messaging": ["redis"],
+  "load-balancers": ["nginx"],
+  "other-technologies": ["bottle"]
+}
